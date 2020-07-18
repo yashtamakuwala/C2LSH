@@ -5,6 +5,7 @@ import pickle
 
 import random
 
+
 def generate(dimension, count, seed, start=-1000, end=1000):
     random.seed(seed)
 
@@ -44,24 +45,31 @@ def generate3(dimension, count, seed, start=0, end=100):
 
     return data, query
 
+
 def createSC():
     conf = SparkConf()
     conf.setMaster("local[*]")
     conf.setAppName("C2LSH")
-    sc = SparkContext(conf = conf)
+    sc = SparkContext(conf=conf)
     return sc
 
-with open("toy/toy_hashed_data", "rb") as file:
+
+# with open("toy/toy_hashed_data", "rb") as file:
+#     data = pickle.load(file)
+#
+# with open("toy/toy_hashed_query", "rb") as file:
+#     query_hashes = pickle.load(file)
+
+with open("hashed_data", "rb") as file:
     data = pickle.load(file)
 
-with open("toy/toy_hashed_query", "rb") as file:
+with open("hashed_query", "rb") as file:
     query_hashes = pickle.load(file)
 
 alpha_m = 10
 beta_n = 10
 
 sc = createSC()
-
 
 
 def countCol(data_hash, query_hashes, offset, length):
@@ -96,6 +104,7 @@ def sub(data_hash, query_hashes, offset, length, alpha_m):
 
     return k, v
 
+
 ########## Question 1 ##########
 # do not change the heading of the function
 def c2lsh(data_hashes, query_hashes, alpha_m, beta_n):
@@ -107,22 +116,28 @@ def c2lsh(data_hashes, query_hashes, alpha_m, beta_n):
     a = None
     isFirst = True
 
+    mult = 1
     t = data_hashes.map(lambda x: sub(x, query_hashes, offset, length, alpha_m))
-    while True:
-        #         for t, v in data_hashes.groupByKey().collect():
 
-        #             if count(v, query_hashes, offset, length) >= alpha_m:
-        #                 cand_set.add(t)
+    def p():
+        while True:
+            #         for t, v in data_hashes.groupByKey().collect():
 
-        k = t.map(lambda x: (x[0], list(filter(lambda y: y <= offset, x[1]))))
-        k = k.map(lambda x: (x[0], len(x[1])))
-        k = k.filter(lambda x: x[1] >= alpha_m)
+            #             if count(v, query_hashes, offset, length) >= alpha_m:
+            #                 cand_set.add(t)
 
-        if k.count() < beta_n:
-            offset += 1
-            # t = t.filter(lambda x: )
-        else:
-            break
+            k = t.map(lambda x: (x[0], list(filter(lambda y: y <= offset, x[1]))))
+            k = k.map(lambda x: (x[0], len(x[1])))
+            k = k.filter(lambda x: x[1] >= alpha_m)
+
+            count = k.count()
+            if count < beta_n:
+                # offset = mult**2
+                # mult *= 2
+                offset += 1
+                # t = t.filter(lambda x: )
+            else:
+                break
         '''
         if isFirst:
             d = data_hashes.map(lambda x: c(x, query_hashes, offset, length, alpha_m))
@@ -142,14 +157,40 @@ def c2lsh(data_hashes, query_hashes, alpha_m, beta_n):
         else:
             break
         '''
+
     #     rdd = sc.parallelize(cand_set)
+
+    low, mid, high = 1, 1, 2
+    has_overshot = False
+    while low < high:
+        k = t.map(lambda x: (x[0], list(filter(lambda y: y <= mid, x[1]))))
+        k = k.map(lambda x: (x[0], len(x[1])))
+        k = k.filter(lambda x: x[1] >= alpha_m)
+        count = k.count()
+
+        if count == beta_n:
+            break
+
+        elif count < beta_n:
+            if not has_overshot:
+                low = mid
+                high *= 2
+            else:
+                low = mid + 1
+
+        else:  # count > beta_n
+            high = mid - 1
+            has_overshot = True
+
+        mid = (low + high) // 2
+
     return k.map(lambda x: x[0])
 
 
-
-alpha_m, beta_n = 10, 10
-# data2, query2 = generate(10, 20000, 0, 0, 1000)
-# query_hashes = query2
+# alpha_m, beta_n = 10, 10
+alpha_m, beta_n = 20, 10
+# data7, query7 = generate( 15, 70_000, 140, -500_000, 500_000)
+# query_hashes = query7
 data_hashes = sc.parallelize([(index, x) for index, x in enumerate(data)])
 
 start_time = time()
@@ -158,3 +199,5 @@ print(res)
 end_time = time()
 print('time: ', end_time - start_time)
 sc.stop()
+
+
