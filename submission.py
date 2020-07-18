@@ -173,58 +173,39 @@ def c2lsh(data_hashes, query_hashes, alpha_m, beta_n):
         '''
 
     #     rdd = sc.parallelize(cand_set)
+    offset = 0
+    while True:
+        a = data_hashes.filter(lambda x: c2(x, query_hashes, offset, length, alpha_m))
+        count = a.count()
 
-    low, mid, high = 0, 0, 2
+        if count >= beta_n :
+            break
+        if offset == 0:
+            offset += 1
+        else:
+            offset *= 2
+
+    low, high = offset//2, offset
     has_overshot = False
-    while low < high:
-        # k = t.map(lambda x: (x[0], list(filter(lambda y: y <= mid, x[1]))))
-        # k = k.map(lambda x: (x[0], len(x[1])))
-        # k = k.filter(lambda x: x[1] >= alpha_m)
-        # # k.persist()
-        # count = k.count()
 
-        # d = data_hashes.map(lambda x: c(x, query_hashes, mid, length, alpha_m))
+    while low <= high:
+        mid = (low + high) // 2
+
         a = data_hashes.filter(lambda x: c2(x, query_hashes, mid, length, alpha_m))
-        # a.cache()
         count = a.count()
 
         if count == beta_n:
             break
 
         elif count < beta_n:
-            if not has_overshot:
-                low = mid
-                high *= 2
-            else:
-                low = mid + 1
+            low = mid + 1
 
         else:  # count > beta_n
             high = mid - 1
             has_overshot = True
 
-        mid = (low + high) // 2
-
-    return a.map(lambda x: x[0])
+    if count >= beta_n:
+        return a.map(lambda x: x[0])
+    else:
+        return data_hashes.filter(lambda x: c2(x, query_hashes, low, length, alpha_m)).map(lambda x: x[0])
     # return a
-
-# # alpha_m, beta_n = 10, 10
-# alpha_m, beta_n = 20, 10
-# # data7, query7 = generate( 15, 70_000, 140, -500_000, 500_000)
-# # query_hashes = query7
-# # length = len(data) - 1
-# # data_hashes = sc.parallelize([(length - index, x) for index, x in enumerate(data)])
-# # data_hashes = sc.parallelize([(index, x) for index, x in enumerate(data)])
-#
-# alpha_m, beta_n = 13, 25
-# data5, query5 = generate3( 13, 7, 100, 0, 120)
-# query_hashes = query5
-# data_hashes = sc.parallelize([(index, x) for index, x in enumerate(data5)])
-#
-# start_time = time()
-# res = c2lsh(data_hashes, query_hashes, alpha_m, beta_n).collect()
-# print(res)
-# end_time = time()
-# print('time: ', end_time - start_time)
-# sc.stop()
-
-
