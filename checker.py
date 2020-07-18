@@ -3,12 +3,14 @@ from time import time
 import pickle
 import submission
 
+
 def createSC():
     conf = SparkConf()
     conf.setMaster("local[*]")
     conf.setAppName("C2LSH")
-    sc = SparkContext(conf = conf)
+    sc = SparkContext(conf=conf)
     return sc
+
 
 with open("test/hashed_data", "rb") as file:
     data = pickle.load(file)
@@ -58,10 +60,25 @@ def generate3(dimension, count, seed, start=0, end=100):
 
     return data, query
 
-alpha_m, beta_n = 10, 10
-data, query2 = generate(10, 20000, 0, 0, 1000)
 
-query_hashes = query2
+# alpha_m, beta_n = 10, 10
+# data, query2 = generate(10, 20000, 0, 0, 1000)
+
+alpha_m, beta_n = 13, 25
+data, query5 = generate3( 13, 7, 100, 0, 120)
+query_hashes = query5
+
+# alpha_m, beta_n = 10, 10
+# data, query2 = generate(10, 20000, 0, 0, 1000)
+# query_hashes = query2
+
+# alpha_m, beta_n = 10, 50
+# data, query3 = generate( 13, 200, 100, -50000, 50000)
+# query_hashes = query3
+
+# alpha_m, beta_n = 10, 50
+# data, query4 = generate2( 13, 9, 100, 0, 120)
+# query_hashes = query4
 sc = createSC()
 data_hashes = sc.parallelize([(index, x) for index, x in enumerate(data)])
 start_time = time()

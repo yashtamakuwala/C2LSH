@@ -1,7 +1,7 @@
 ## import modules here
-from pyspark import SparkContext, SparkConf
-from time import time
-import pickle
+# from pyspark import SparkContext, SparkConf
+# from time import time
+# import pickle
 
 import random
 
@@ -46,30 +46,32 @@ def generate3(dimension, count, seed, start=0, end=100):
     return data, query
 
 
-def createSC():
-    conf = SparkConf()
-    conf.setMaster("local[*]")
-    conf.setAppName("C2LSH")
-    sc = SparkContext(conf=conf)
-    return sc
+# def createSC():
+#     conf = SparkConf()
+#     conf.setMaster("local[*]")
+#     conf.setAppName("C2LSH")
+#     sc = SparkContext(conf=conf)
+#     return sc
 
+ # {161, 34, 68, 139, 492, 461, 303, 401, 307, 248, 447}
 
+# {161, 34, 68, 139, 492, 461, 303, 401, 307, 248, 447}
 # with open("toy/toy_hashed_data", "rb") as file:
 #     data = pickle.load(file)
 #
 # with open("toy/toy_hashed_query", "rb") as file:
 #     query_hashes = pickle.load(file)
 
-with open("hashed_data", "rb") as file:
-    data = pickle.load(file)
+# with open("test/hashed_data", "rb") as file:
+#     data = pickle.load(file)
+#
+# with open("test/hashed_query", "rb") as file:
+#     query_hashes = pickle.load(file)
 
-with open("hashed_query", "rb") as file:
-    query_hashes = pickle.load(file)
-
-alpha_m = 10
-beta_n = 10
-
-sc = createSC()
+# alpha_m = 10
+# beta_n = 10
+#
+# sc = createSC()
 
 
 def countCol(data_hash, query_hashes, offset, length):
@@ -94,6 +96,18 @@ def c(data_hash, query_hashes, offset, length, alpha_m):
     if count >= alpha_m:
         return k
 
+def c2(data_hash, query_hashes, offset, length, alpha_m):
+    count = 0
+    k, v = data_hash
+
+    for i in range(length):
+        if abs(v[i] - query_hashes[i]) <= offset:
+            count += 1
+
+    if count >= alpha_m:
+        return True
+    else:
+        return False
 
 def sub(data_hash, query_hashes, offset, length, alpha_m):
     count = 0
@@ -117,7 +131,7 @@ def c2lsh(data_hashes, query_hashes, alpha_m, beta_n):
     isFirst = True
 
     mult = 1
-    t = data_hashes.map(lambda x: sub(x, query_hashes, offset, length, alpha_m))
+    # t = data_hashes.map(lambda x: sub(x, query_hashes, offset, length, alpha_m))
 
     def p():
         while True:
@@ -160,13 +174,19 @@ def c2lsh(data_hashes, query_hashes, alpha_m, beta_n):
 
     #     rdd = sc.parallelize(cand_set)
 
-    low, mid, high = 1, 1, 2
+    low, mid, high = 0, 0, 2
     has_overshot = False
     while low < high:
-        k = t.map(lambda x: (x[0], list(filter(lambda y: y <= mid, x[1]))))
-        k = k.map(lambda x: (x[0], len(x[1])))
-        k = k.filter(lambda x: x[1] >= alpha_m)
-        count = k.count()
+        # k = t.map(lambda x: (x[0], list(filter(lambda y: y <= mid, x[1]))))
+        # k = k.map(lambda x: (x[0], len(x[1])))
+        # k = k.filter(lambda x: x[1] >= alpha_m)
+        # # k.persist()
+        # count = k.count()
+
+        # d = data_hashes.map(lambda x: c(x, query_hashes, mid, length, alpha_m))
+        a = data_hashes.filter(lambda x: c2(x, query_hashes, mid, length, alpha_m))
+        # a.cache()
+        count = a.count()
 
         if count == beta_n:
             break
@@ -184,20 +204,27 @@ def c2lsh(data_hashes, query_hashes, alpha_m, beta_n):
 
         mid = (low + high) // 2
 
-    return k.map(lambda x: x[0])
+    return a.map(lambda x: x[0])
+    # return a
 
-
-# alpha_m, beta_n = 10, 10
-alpha_m, beta_n = 20, 10
-# data7, query7 = generate( 15, 70_000, 140, -500_000, 500_000)
-# query_hashes = query7
-data_hashes = sc.parallelize([(index, x) for index, x in enumerate(data)])
-
-start_time = time()
-res = c2lsh(data_hashes, query_hashes, alpha_m, beta_n).collect()
-print(res)
-end_time = time()
-print('time: ', end_time - start_time)
-sc.stop()
+# # alpha_m, beta_n = 10, 10
+# alpha_m, beta_n = 20, 10
+# # data7, query7 = generate( 15, 70_000, 140, -500_000, 500_000)
+# # query_hashes = query7
+# # length = len(data) - 1
+# # data_hashes = sc.parallelize([(length - index, x) for index, x in enumerate(data)])
+# # data_hashes = sc.parallelize([(index, x) for index, x in enumerate(data)])
+#
+# alpha_m, beta_n = 13, 25
+# data5, query5 = generate3( 13, 7, 100, 0, 120)
+# query_hashes = query5
+# data_hashes = sc.parallelize([(index, x) for index, x in enumerate(data5)])
+#
+# start_time = time()
+# res = c2lsh(data_hashes, query_hashes, alpha_m, beta_n).collect()
+# print(res)
+# end_time = time()
+# print('time: ', end_time - start_time)
+# sc.stop()
 
 
